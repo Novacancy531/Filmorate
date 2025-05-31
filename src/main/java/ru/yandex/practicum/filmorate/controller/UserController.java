@@ -1,60 +1,66 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.service.UserService;
 
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 
-@Slf4j
 @RestController
 @Validated
 @RequestMapping("/users")
 public class UserController {
-    private final Map<Long, User> users = new HashMap<>();
-    private int currentId = 0;
+    private final UserService userService;
 
-    @PostMapping
-    public User createUser(@Valid @RequestBody User user) {
-        log.info("Добавление пользователя.");
-        if (user.getName() == null || user.getName().isBlank()) {
-            log.trace("В поле имя установлен логин, т.к. поле имя пустое.");
-            user.setName(user.getLogin());
-        }
-        user.setId(getNextId());
-        users.put(user.getId(), user);
-        log.trace("Добавлен пользователь.");
-        return user;
+
+    @Autowired
+    public UserController(UserService userService) {
+        this.userService = userService;
     }
 
     @GetMapping
+    @ResponseStatus(HttpStatus.OK)
     public Collection<User> getAllUsers() {
-        log.info("Отправка коллекции пользователей.");
-        return users.values();
+        return userService.getAllUsers();
+    }
+
+    @GetMapping("/{id}/friends")
+    @ResponseStatus(HttpStatus.OK)
+    public Collection<User> userFriendsList(@PathVariable final long id) {
+        return userService.userFriendsList(id);
+    }
+
+    @GetMapping("/{id}/friends/common/{otherId}")
+    @ResponseStatus(HttpStatus.OK)
+    public Collection<User> commonFriends(@PathVariable final long id, @PathVariable final long otherId) {
+        return userService.commonFriends(id, otherId);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public User createUser(@Valid @RequestBody User user) {
+        return userService.createUser(user);
+    }
+
+    @PutMapping("/{id}/friends/{friendId}")
+    @ResponseStatus(HttpStatus.OK)
+    public void addFriend(@PathVariable final long id, @PathVariable final long friendId) {
+        userService.addFriend(id, friendId);
     }
 
     @PutMapping
-    public ResponseEntity<User> updateUser(@Valid @RequestBody User user) {
-        log.info("Обновление данных пользователя.");
-
-        if (user.getId() == null) {
-            throw new ConditionsNotMetException("Не указан id пользователя");
-        } else if (!users.containsKey(user.getId())) {
-            throw new ConditionsNotMetException("Пользователь не найден.");
-        }
-
-        users.replace(user.getId(), user);
-        log.trace("Данные пользователя обновлены.");
-        return ResponseEntity.ok(user);
+    @ResponseStatus(HttpStatus.OK)
+    public User updateUser(@Valid @RequestBody User user) {
+        return userService.updateUser(user);
     }
 
-    private long getNextId() {
-        return ++currentId;
+    @DeleteMapping("/{id}/friends/{friendId}")
+    @ResponseStatus(HttpStatus.OK)
+    public void deleteFriend(@PathVariable final long id, @PathVariable final long friendId) {
+        userService.deleteFriend(id, friendId);
     }
 }
