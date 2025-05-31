@@ -1,7 +1,7 @@
 package ru.yandex.practicum.filmorate.service;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
 import ru.yandex.practicum.filmorate.model.User;
@@ -13,13 +13,10 @@ import java.util.Set;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class UserService {
     private final InMemoryUserStorage userStorage;
 
-    @Autowired
-    public UserService(final InMemoryUserStorage userStorage) {
-        this.userStorage = userStorage;
-    }
 
     public User createUser(final User user) {
         if (user.getName() == null || user.getName().isBlank()) {
