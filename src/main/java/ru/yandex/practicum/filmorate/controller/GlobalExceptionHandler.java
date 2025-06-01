@@ -9,6 +9,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
@@ -38,12 +39,23 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ConditionsNotMetException.class)
     public ResponseEntity<ErrorResponse> handleConditionsNotMetException(ConditionsNotMetException exception) {
-        return buildErrorResponse(HttpStatus.NOT_FOUND, exception.getMessage());
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFoundException(NotFoundException ex) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(ValidationException exception) {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleUnhandledExceptions(Exception ex) {
+        log.error("Внутренняя ошибка сервера: ", ex);
+        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Произошла внутренняя ошибка сервера");
     }
 
     private ResponseEntity<ErrorResponse> buildErrorResponse(HttpStatus status, String message) {

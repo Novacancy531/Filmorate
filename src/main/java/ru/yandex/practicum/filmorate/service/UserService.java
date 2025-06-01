@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.InMemoryUserStorage;
 
@@ -34,7 +35,7 @@ public class UserService {
     }
 
     public User updateUser(final User user) {
-        ifContains(user.getId());
+        checkUserExists(user.getId());
 
         userStorage.updateUser(user);
         log.info("Информация о пользователе с id: {} обновлена.", user.getId());
@@ -42,8 +43,17 @@ public class UserService {
     }
 
     public void addFriend(final long id, final long friendId) {
-        ifContains(id);
-        ifContains(friendId);
+        checkUserExists(id);
+        checkUserExists(friendId);
+
+        if (id == friendId) {
+            log.warn("Пользователь попытался добавить в друзья сам себя.");
+            throw new ConditionsNotMetException("Нельзя добавить в друзья самого себя.");
+        }
+        if (userStorage.getUser(id).getFriendList().contains(friendId)) {
+            log.warn("Пользователь уже в списке друзей.");
+            throw new ConditionsNotMetException("Пользователь уже в списке друзей.");
+        }
 
         log.info("Пользователи с id {} и {} теперь друзья.", id, friendId);
         userStorage.getUser(id).getFriendList().add(friendId);
@@ -51,16 +61,16 @@ public class UserService {
     }
 
     public void deleteFriend(final long id, final long friendId) {
-        ifContains(id);
-        ifContains(friendId);
+        checkUserExists(id);
+        checkUserExists(friendId);
 
-        log.info("Пользователь с id: {} удален из списка друзей пользователя с id: {}.",friendId, id);
+        log.info("Пользователь с id: {} удален из списка друзей пользователя с id: {}.", friendId, id);
         userStorage.getUser(id).getFriendList().remove(friendId);
         userStorage.getUser(friendId).getFriendList().remove(id);
     }
 
     public Collection<User> userFriendsList(final long id) {
-        ifContains(id);
+        checkUserExists(id);
 
         log.info("Отправлен список друзей пользователя с id: {}.", id);
         return userStorage.getUser(id).getFriendList().stream()
@@ -69,8 +79,8 @@ public class UserService {
     }
 
     public Collection<User> commonFriends(final long id, final long otherId) {
-        ifContains(id);
-        ifContains(otherId);
+        checkUserExists(id);
+        checkUserExists(otherId);
 
         Set<Long> friends = new HashSet<>(userStorage.getUser(otherId).getFriendList());
 
@@ -81,10 +91,9 @@ public class UserService {
                 .toList();
     }
 
-    public void ifContains(final long id) {
+    public void checkUserExists(final long id) {
         if (!userStorage.getUsers().containsKey(id)) {
-            log.info("Запрошенный пользователь с id: {} не найден.", id);
-            throw new ConditionsNotMetException("Пользователь с id: " + id + " не найден.");
+            throw new NotFoundException("Пользователь с id: " + id + " не найден.");
         }
     }
 }
