@@ -2,13 +2,16 @@ package ru.yandex.practicum.filmorate.model;
 
 import jakarta.validation.constraints.*;
 import lombok.Data;
-import ru.yandex.practicum.filmorate.annotation.AfterDate;
+import ru.yandex.practicum.filmorate.validator.annotation.AfterDate;
 
 import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.Set;
 
 @Data
 public class Film {
     private Long id;
+    private final Set<Long> likes = new HashSet<>();
 
     @NotBlank(message = "Не может быть пустым.")
     private String name;
