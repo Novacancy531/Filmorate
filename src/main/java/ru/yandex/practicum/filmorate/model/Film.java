@@ -8,10 +8,10 @@ import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
+
 @Data
 public class Film {
     private Long id;
-    private final Set<Long> likes = new HashSet<>();
 
     @NotBlank(message = "Не может быть пустым.")
     private String name;
@@ -27,4 +27,9 @@ public class Film {
     @NotNull
     @Min(value = 1, message = "Продолжительность должна быть больше 0")
     private int duration;
+
+    @NotNull
+    private MPA mpa;
+
+    private Set<Genre> genres = new HashSet<>();
 }

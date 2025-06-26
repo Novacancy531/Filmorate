@@ -1,45 +1,46 @@
 package ru.yandex.practicum.filmorate.service;
 
-import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
-import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.storage.InMemoryUserStorage;
+import ru.yandex.practicum.filmorate.storage.dal.mapper.UserMapper;
+import ru.yandex.practicum.filmorate.storage.dto.UserDto;
+import ru.yandex.practicum.filmorate.storage.interfaces.UserStorage;
 
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
+
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class UserService {
-    private final InMemoryUserStorage userStorage;
+    private final UserStorage userStorage;
 
 
-    public User createUser(final User user) {
+    public UserDto addUser(final UserDto user) {
         if (user.getName() == null || user.getName().isBlank()) {
             user.setName(user.getLogin());
             log.info("Пользователь не заполнил имя, в поле имя установлен логин пользователя: {}.", user.getName());
         }
 
         log.info("Пользователь {} создан.", user.getName());
-        return userStorage.addUser(user);
+        return UserMapper.toDto(userStorage.addUser(UserMapper.fromDto(user)));
     }
 
-    public Collection<User> getAllUsers() {
+    public Collection<UserDto> getAllUsers() {
         log.info("Отправлен список всех пользователей.");
-        return userStorage.getUsers().values();
+        return userStorage.getUsers().values().stream()
+                .map(UserMapper::toDto)
+                .toList();
     }
 
-    public User updateUser(final User user) {
+    public UserDto updateUser(final UserDto user) {
         checkUserExists(user.getId());
 
-        userStorage.updateUser(user);
-        log.info("Информация о пользователе с id: {} обновлена.", user.getId());
-        return userStorage.getUser(user.getId());
+        log.info("Обновляется информация о пользователе с id: {}.", user.getId());
+        return UserMapper.toDto(userStorage.updateUser(UserMapper.fromDto(user)));
     }
 
     public void addFriend(final long id, final long friendId) {
@@ -50,45 +51,41 @@ public class UserService {
             log.warn("Пользователь попытался добавить в друзья сам себя.");
             throw new ConditionsNotMetException("Нельзя добавить в друзья самого себя.");
         }
-        if (userStorage.getUser(id).getFriendList().contains(friendId)) {
+        if (userStorage.checkUserFriend(id, friendId)) {
             log.warn("Пользователь уже в списке друзей.");
             throw new ConditionsNotMetException("Пользователь уже в списке друзей.");
         }
 
-        log.info("Пользователи с id {} и {} теперь друзья.", id, friendId);
-        userStorage.getUser(id).getFriendList().add(friendId);
-        userStorage.getUser(friendId).getFriendList().add(id);
+        userStorage.addFriend(id, friendId);
+            log.info("Пользователь с id {} добавил пользователя {} в друзья.", id, friendId);
+
     }
 
     public void deleteFriend(final long id, final long friendId) {
         checkUserExists(id);
         checkUserExists(friendId);
 
+        userStorage.deleteFriend(id, friendId);
         log.info("Пользователь с id: {} удален из списка друзей пользователя с id: {}.", friendId, id);
-        userStorage.getUser(id).getFriendList().remove(friendId);
-        userStorage.getUser(friendId).getFriendList().remove(id);
     }
 
-    public Collection<User> userFriendsList(final long id) {
+    public Collection<UserDto> userFriendsList(final long id) {
         checkUserExists(id);
 
         log.info("Отправлен список друзей пользователя с id: {}.", id);
-        return userStorage.getUser(id).getFriendList().stream()
-                .map(userId -> userStorage.getUsers().get(userId))
+        return userStorage.getUserFriends(id).stream()
+                .map(UserMapper::toDto)
                 .toList();
     }
 
-    public Collection<User> commonFriends(final long id, final long otherId) {
+    public Collection<UserDto> commonFriends(final long id, final long friendId) {
         checkUserExists(id);
-        checkUserExists(otherId);
+        checkUserExists(friendId);
 
-        Set<Long> friends = new HashSet<>(userStorage.getUser(otherId).getFriendList());
-
-        log.info("Отправлен список общих друзей пользователей с id {} и {}.", id, otherId);
-        return userStorage.getUser(id).getFriendList().stream()
-                .filter(friends::contains)
-                .map(userId -> userStorage.getUsers().get(userId))
-                .toList();
+        log.info("Отправляется список общих друзей пользователей с id {} и {}.", id, friendId);
+        return userStorage.getUserFriends(id).stream()
+                        .filter(user -> userStorage.getUserFriends(friendId).contains(user))
+                                .map(UserMapper::toDto).toList();
     }
 
     public void checkUserExists(final long id) {

@@ -5,10 +5,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.service.UserService;
+import ru.yandex.practicum.filmorate.storage.dto.UserDto;
 
 import java.util.Collection;
+
 
 @RestController
 @Validated
@@ -20,26 +21,26 @@ public class UserController {
 
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
-    public Collection<User> getAllUsers() {
+    public Collection<UserDto> getAllUsers() {
         return userService.getAllUsers();
     }
 
     @GetMapping("/{id}/friends")
     @ResponseStatus(HttpStatus.OK)
-    public Collection<User> userFriendsList(@PathVariable final long id) {
+    public Collection<UserDto> userFriendsList(@PathVariable final long id) {
         return userService.userFriendsList(id);
     }
 
     @GetMapping("/{id}/friends/common/{otherId}")
     @ResponseStatus(HttpStatus.OK)
-    public Collection<User> commonFriends(@PathVariable final long id, @PathVariable final long otherId) {
+    public Collection<UserDto> commonFriends(@PathVariable final long id, @PathVariable final long otherId) {
         return userService.commonFriends(id, otherId);
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public User createUser(@Valid @RequestBody User user) {
-        return userService.createUser(user);
+    public UserDto createUser(@Valid @RequestBody final UserDto user) {
+        return userService.addUser(user);
     }
 
     @PutMapping("/{id}/friends/{friendId}")
@@ -50,7 +51,7 @@ public class UserController {
 
     @PutMapping
     @ResponseStatus(HttpStatus.OK)
-    public User updateUser(@Valid @RequestBody User user) {
+    public UserDto updateUser(@Valid @RequestBody final UserDto user) {
         return userService.updateUser(user);
     }
 

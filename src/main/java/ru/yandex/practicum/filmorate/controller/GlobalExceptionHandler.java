@@ -14,6 +14,7 @@ import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
+
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
