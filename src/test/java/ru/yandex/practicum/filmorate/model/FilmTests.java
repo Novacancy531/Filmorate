@@ -27,11 +27,14 @@ class FilmTests {
 
     private Film createFilm() {
         Film film = new Film();
+        MPA mpa = new MPA();
+        mpa.setId(2);
 
         film.setName("Фильм");
         film.setDescription("Описание фильма");
         film.setReleaseDate(LocalDate.of(1895, 12, 28));
         film.setDuration(100);
+        film.setMpa(mpa);
 
         return film;
     }

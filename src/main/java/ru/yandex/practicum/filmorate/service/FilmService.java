@@ -1,44 +1,56 @@
 package ru.yandex.practicum.filmorate.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
-import ru.yandex.practicum.filmorate.model.Film;
-import ru.yandex.practicum.filmorate.storage.InMemoryFilmStorage;
-import ru.yandex.practicum.filmorate.storage.InMemoryUserStorage;
+import ru.yandex.practicum.filmorate.storage.dal.mapper.FilmMapper;
+import ru.yandex.practicum.filmorate.storage.dto.FilmDto;
+import ru.yandex.practicum.filmorate.storage.interfaces.FilmStorage;
+import ru.yandex.practicum.filmorate.storage.interfaces.UserStorage;
 
 import java.util.Collection;
-import java.util.Comparator;
+
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class FilmService {
-    private final InMemoryFilmStorage filmStorage;
-    private final InMemoryUserStorage userStorage;
+    private final FilmStorage filmStorage;
+    private final UserStorage userStorage;
 
-
-    public Film createFilm(final Film film) {
-        log.info("Создан фильм: {}", film.getName());
-        return filmStorage.addFilm(film);
+    public FilmService(@Qualifier("filmRepository") final FilmStorage filmStorage,
+                       @Qualifier("userRepository") final UserStorage userStorage) {
+        this.filmStorage = filmStorage;
+        this.userStorage = userStorage;
     }
 
-    public Collection<Film> getAllFilms() {
-        log.info("Отправлен список всех фильмов.");
-        return filmStorage.getFilms().values();
+
+    public FilmDto createFilm(final FilmDto film) {
+        log.info("Добавляется фильм: {}", film.getName());
+        return FilmMapper.toDto(filmStorage.addFilm(FilmMapper.fromDto(film)));
     }
 
-    public Film updateFilm(final Film film) {
+    public FilmDto getFilm(final long id) {
+        return FilmMapper.toDto(filmStorage.getFilm(id));
+    }
+
+    public Collection<FilmDto> getAllFilms() {
+        log.info("Отправляется список всех фильмов.");
+        return filmStorage.getAllFilms().values().stream()
+                .map(FilmMapper::toDto)
+                .toList();
+    }
+
+    public FilmDto updateFilm(final FilmDto film) {
         if (film.getId() == null) {
             throw new ConditionsNotMetException("Не указан id фильма.");
         }
         checkFilmExists(film.getId());
 
-        filmStorage.updateFilm(film);
+        filmStorage.updateFilm(FilmMapper.fromDto(film));
         log.info("Фильм с id: {} обновлен.", film.getId());
-        return filmStorage.getFilm(film.getId());
+        return FilmMapper.toDto(filmStorage.getFilm(film.getId()));
     }
 
     public void deleteFilm(final long filmId) {
@@ -52,35 +64,22 @@ public class FilmService {
         checkFilmExists(filmId);
         checkUserExists(userId);
 
-        if (filmStorage.getFilm(filmId).getLikes().contains(userId)) {
-            log.warn("Пользователь с id: {} пытается повторно поставить лайк", userId);
-            throw new ConditionsNotMetException("Ваш лайк уже поставлен.");
-        }
-
+        filmStorage.addLike(userId, filmId);
         log.info("Пользователь с id: {} поставил лайк фильму с id: {}", userId, filmId);
-        filmStorage.getFilm(filmId).getLikes().add(userId);
     }
 
     public void deleteLike(final long filmId, final long userId) {
         checkFilmExists(filmId);
         checkUserExists(userId);
 
-        if (!filmStorage.getFilm(filmId).getLikes().contains(userId)) {
-            log.warn("Пользователь с id: {} пытается убрать отсутствующий лайк", userId);
-            throw new ConditionsNotMetException("На данном фильме нет вашего лайка");
-        }
-
+        filmStorage.deleteLike(userId, filmId);
         log.info("У фильма с id: {} удален лайк пользователя с id: {}.", filmId, userId);
-        filmStorage.getFilm(filmId).getLikes().remove(userId);
     }
 
-    public Collection<Film> mostPopular(final Long count) {
-        long limit = (count == null || count <= 0) ? 10 : count;
-
+    public Collection<FilmDto> mostPopular(final long count) {
         log.info("Отправлен список популярных фильмов");
-        return filmStorage.getFilms().values().stream()
-                .sorted(Comparator.comparing(film -> film.getLikes().size(), Comparator.reverseOrder()))
-                .limit(limit)
+        return filmStorage.mostPopular(count).stream()
+                .map(FilmMapper::toDto)
                 .toList();
     }
 
@@ -91,7 +90,7 @@ public class FilmService {
     }
 
     public void checkFilmExists(final long filmId) {
-        if (!filmStorage.getFilms().containsKey(filmId)) {
+        if (!filmStorage.getAllFilms().containsKey(filmId)) {
             throw new NotFoundException("Фильм с id: " + filmId + " не найден.");
         }
     }
