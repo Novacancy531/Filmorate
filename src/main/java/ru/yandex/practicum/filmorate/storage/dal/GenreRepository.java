@@ -1,6 +1,7 @@
 package ru.yandex.practicum.filmorate.storage.dal;
 
 import lombok.AllArgsConstructor;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
@@ -8,6 +9,8 @@ import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.interfaces.GenreStorage;
 
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.*;
 
 
@@ -68,11 +71,22 @@ public class GenreRepository implements GenreStorage {
     @Override
     public void saveFilmGenres(final Film film) {
         validateGenres(film);
+        List<Genre> genres = new ArrayList<>(film.getGenres());
 
-        if (!film.getGenres().isEmpty()) {
-            for (Genre genre : film.getGenres()) {
-                jdbcTemplate.update(SAVE_GENRE, film.getId(), genre.getId());
-            }
+        if (!genres.isEmpty()) {
+            jdbcTemplate.batchUpdate(SAVE_GENRE, new BatchPreparedStatementSetter() {
+                @Override
+                public void setValues(PreparedStatement ps, int i) throws SQLException {
+                    Genre genre = genres.get(i);
+                    ps.setLong(1, film.getId());
+                    ps.setLong(2, genre.getId());
+                }
+
+                @Override
+                public int getBatchSize() {
+                    return genres.size();
+                }
+            });
         }
     }
 

@@ -1,13 +1,16 @@
 package ru.yandex.practicum.filmorate.service;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.storage.dal.mapper.FilmMapper;
 import ru.yandex.practicum.filmorate.storage.dto.FilmDto;
 import ru.yandex.practicum.filmorate.storage.interfaces.FilmStorage;
+import ru.yandex.practicum.filmorate.storage.interfaces.GenreStorage;
+import ru.yandex.practicum.filmorate.storage.interfaces.MPAStorage;
 import ru.yandex.practicum.filmorate.storage.interfaces.UserStorage;
 
 import java.util.Collection;
@@ -15,40 +18,51 @@ import java.util.Collection;
 
 @Slf4j
 @Service
+@AllArgsConstructor
 public class FilmService {
     private final FilmStorage filmStorage;
     private final UserStorage userStorage;
-
-    public FilmService(@Qualifier("filmRepository") final FilmStorage filmStorage,
-                       @Qualifier("userRepository") final UserStorage userStorage) {
-        this.filmStorage = filmStorage;
-        this.userStorage = userStorage;
-    }
+    private final GenreStorage genreStorage;
+    private final MPAStorage mpaStorage;
 
 
-    public FilmDto createFilm(final FilmDto film) {
-        log.info("Добавляется фильм: {}", film.getName());
-        return FilmMapper.toDto(filmStorage.addFilm(FilmMapper.fromDto(film)));
+    public FilmDto createFilm(final FilmDto filmDto) {
+        log.info("Добавляется фильм: {}", filmDto.getName());
+        Film film = FilmMapper.fromDto(filmDto);
+        mpaStorage.validateMpa(film);
+        filmStorage.addFilm(film);
+        genreStorage.saveFilmGenres(film);
+
+        return FilmMapper.toDto(film);
     }
 
     public FilmDto getFilm(final long id) {
-        return FilmMapper.toDto(filmStorage.getFilm(id));
+        Film film = filmStorage.getFilm(id);
+        film.setGenres(genreStorage.findGenresByFilmId(id));
+
+        return FilmMapper.toDto(film);
     }
 
     public Collection<FilmDto> getAllFilms() {
         log.info("Отправляется список всех фильмов.");
-        return filmStorage.getAllFilms().values().stream()
+        return filmStorage.getAllFilms().stream()
+                .peek(film -> film.setGenres(genreStorage.findGenresByFilmId(film.getId())))
                 .map(FilmMapper::toDto)
                 .toList();
     }
 
-    public FilmDto updateFilm(final FilmDto film) {
-        if (film.getId() == null) {
+    public FilmDto updateFilm(final FilmDto filmDto) {
+        if (filmDto.getId() == null) {
             throw new ConditionsNotMetException("Не указан id фильма.");
         }
-        checkFilmExists(film.getId());
+        Film film = FilmMapper.fromDto(filmDto);
 
-        filmStorage.updateFilm(FilmMapper.fromDto(film));
+        checkFilmExists(film.getId());
+        genreStorage.deleteFilmsGenres(film.getId());
+
+        filmStorage.updateFilm(film);
+        genreStorage.saveFilmGenres(film);
+
         log.info("Фильм с id: {} обновлен.", film.getId());
         return FilmMapper.toDto(filmStorage.getFilm(film.getId()));
     }
@@ -56,8 +70,9 @@ public class FilmService {
     public void deleteFilm(final long filmId) {
         checkFilmExists(filmId);
 
-        log.info("Удален фильм с id: {}", filmId);
+        genreStorage.deleteFilmsGenres(filmId);
         filmStorage.deleteFilm(filmId);
+        log.info("Удален фильм с id: {}", filmId);
     }
 
     public void addLike(final long filmId, final long userId) {
@@ -90,7 +105,8 @@ public class FilmService {
     }
 
     public void checkFilmExists(final long filmId) {
-        if (!filmStorage.getAllFilms().containsKey(filmId)) {
+        if (filmStorage.getAllFilms().stream()
+                .noneMatch(film -> film.getId() == filmId)) {
             throw new NotFoundException("Фильм с id: " + filmId + " не найден.");
         }
     }

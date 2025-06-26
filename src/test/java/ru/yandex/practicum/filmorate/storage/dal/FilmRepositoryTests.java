@@ -6,11 +6,9 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.context.annotation.Import;
 import ru.yandex.practicum.filmorate.model.Film;
-import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.model.MPA;
 
 import java.time.LocalDate;
-import java.util.HashSet;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -38,13 +36,9 @@ class FilmRepositoryTests {
         film.setReleaseDate(LocalDate.of(2020, 1, 1));
         film.setDuration(100);
 
-        MPA mpa = mpaRepository.getNameById(1); // или .findById()
+        MPA mpa = mpaRepository.getNameById(1);
         film.setMpa(mpa);
 
-        Set<Genre> genres = new HashSet<>();
-        genres.add(genreRepository.getGenre(1));
-        genres.add(genreRepository.getGenre(2));
-        film.setGenres(genres);
 
         Film savedFilm = filmRepository.addFilm(film);
         assertTrue(savedFilm.getId() > 0);
@@ -52,7 +46,6 @@ class FilmRepositoryTests {
         Film filmFromDb = filmRepository.getFilm(savedFilm.getId());
         assertNotNull(filmFromDb);
         assertEquals("My Film", filmFromDb.getName());
-        assertEquals(2, filmFromDb.getGenres().size());
     }
 
     @Test
@@ -68,11 +61,9 @@ class FilmRepositoryTests {
         Film savedFilm = filmRepository.addFilm(film);
         assertNotNull(savedFilm);
 
-        // Обновляем данные фильма
         savedFilm.setName("Updated Name");
         savedFilm.setDescription("Updated description");
         savedFilm.setDuration(150);
-        savedFilm.setGenres(Set.of(genreRepository.getGenre(2), genreRepository.getGenre(3)));
 
         filmRepository.updateFilm(savedFilm);
 
@@ -80,7 +71,6 @@ class FilmRepositoryTests {
         assertEquals("Updated Name", updatedFilm.getName());
         assertEquals("Updated description", updatedFilm.getDescription());
         assertEquals(150, updatedFilm.getDuration());
-        assertEquals(2, updatedFilm.getGenres().size());
     }
 
     @Test
@@ -107,5 +97,4 @@ class FilmRepositoryTests {
         var films = filmRepository.getAllFilms();
         assertTrue(films.size() >= 2, "В базе должно быть как минимум 2 фильма");
     }
-
 }
